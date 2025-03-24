@@ -27,9 +27,7 @@ async function fetchGeminiResponse(context: Devvit.Context, q: string): Promise<
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: q }] },
-          ],
+          contents: [{ role: 'user', parts: [{ text: q }] }],
         }),
       }
     );
@@ -54,6 +52,7 @@ Devvit.addCustomPostType({
   render: (context) => {
     const [responseText, setResponseText] = useState('');
     const [currentPage, setCurrentPage] = useState<'home' | 'play'>('home'); // Track current page
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // Track selected category
 
     const askform = useForm(
       {
@@ -61,41 +60,63 @@ Devvit.addCustomPostType({
       },
       async (values) => {
         const query = values.query || 'invalid query';
-
-        // If user types "play", switch to Play Page
-        if (query.toLowerCase() === 'play') {
-          setCurrentPage('play');
-          return;
-        }
-
         const response = await fetchGeminiResponse(context, query);
         setResponseText(response);
       }
     );
 
-    // Home Page UI
+    // Home Page (Category Selection)
     if (currentPage === 'home') {
+      const categories = ['Sports Persons', 'Celebrities', 'Animals'];
+
       return (
-        <blocks height="tall">
-          <vstack alignment="center middle" height="100%" gap="large">
-            <button appearance="primary" onPress={() => context.ui.showForm(askform)}>
-              Hi there! Ask me anything.
-            </button>
-            <text wrap>{responseText}</text>
+        <blocks height='tall' >
+          <vstack alignment="center middle" height="100%" gap="large" backgroundColor='lightblue'>
+            <text size="large" weight="bold" color='black'>
+               Welcome to REVERSE AKINATOR! 
+            </text>
+
+            <text color='black'>Select a category:</text>
+            <hstack gap="medium" padding="medium">
+              {categories.map((category) => (
+                <button
+                  key={category}
+          
+                  appearance={selectedCategory === category ? 'primary' : 'secondary'}
+                  onPress={() => setSelectedCategory(category)}
+          
+                >
+                  {category}
+                </button>
+              ))}
+            </hstack>
+
+            {selectedCategory && (
+              <button appearance="primary" onPress={() => setCurrentPage('play')}>
+                Play as {selectedCategory} 🎲
+              </button>
+            )}
           </vstack>
         </blocks>
       );
     }
 
-    // Play Page UI
+    // Play Page (Chat with Gemini)
     return (
       <blocks height="tall">
         <vstack alignment="center middle" height="100%" gap="large">
           <text size="large" weight="bold">
-            🎮 Welcome to the Play Page! 🎮
+            Chat as {selectedCategory} 🗣️
           </text>
+
+          <button appearance="primary" onPress={() => context.ui.showForm(askform)}>
+            Ask Gemini Anything! 💡
+          </button>
+
+          <text wrap>{responseText}</text>
+
           <button appearance="secondary" onPress={() => setCurrentPage('home')}>
-            ⬅ Go Back
+            ⬅ Back to Categories
           </button>
         </vstack>
       </blocks>
