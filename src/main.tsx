@@ -1,4 +1,863 @@
-mport { Devvit, useState, useForm, useChannel} from '@devvit/public-api';
+// //has leaderboard issues
+// import { Devvit, useState, useForm, useChannel} from '@devvit/public-api';
+
+
+// import { animals, getAnimalData } from './animaldata';
+
+// Devvit.configure({
+//   http: true,
+//   redis: true,
+//   realtime: true,
+//   redditAPI: true,
+// });
+
+// // Store Google API key in Devvit's settings
+// Devvit.addSettings([
+//   {
+//     name: 'googleApiKey',
+//     label: 'Google API Key',
+//     type: 'string',
+//     isSecret: true,
+//     scope: 'app',
+//   },
+// ]);
+// type LeaderboardEntry = { member: string; score: number };
+
+// async function setupAnimals(context: Devvit.Context) {
+//   const animalData = getAnimalData();
+//   const redisData: Record<string, string> = {};
+  
+//   Object.entries(animalData).forEach(([key, value]) => {
+//     redisData[key] = JSON.stringify(value);
+//   });
+  
+//   // Store in Redis
+//   await context.redis.hSet('animals', redisData);
+//   console.log("Animal data stored in Redis!");
+// }
+
+// async function getRandomAnimal(context: Devvit.Context) {
+//   const animalKeys = await context.redis.hKeys('animals');
+//   if (!animalKeys.length) {
+//     await setupAnimals(context);
+//   }
+//   const animals = await context.redis.hKeys('animals');
+//   if (animals.length === 0){
+//     console.log("No animals found!");
+//     return {animal: "an anumal", descrip:"set can't be made"};
+//   } 
+//   // Pick a random animal
+//   const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+//   console.log(`Selected Animal: ${randomAnimal}`);
+//   const animalData = await context.redis.hGet('animals', randomAnimal);
+//   if (!animalData) {
+//     console.log("Animal data is undefined");
+//     return {animal: 'errrrr', descrip: 'error'};
+//   }
+//   const { image, description } = JSON.parse(animalData);
+//   console.log(`Selected Animal: ${randomAnimal}`);
+//   console.log(`Image URL: ${image}`);
+//   console.log(`Description: ${description}`);
+
+//   return {animal: randomAnimal, descrip: description};
+// }
+
+// // gemini msg declaration
+// type ChatMessage = { role: 'user' | 'assistant'; content: string };
+// async function fetchGeminiResponse(
+//   context: Devvit.Context,
+//   secretEntity: string,
+//   chatHistory: ChatMessage[]
+// ): Promise<string> {
+//   try {
+//     const apiKey = await context.settings.get('googleApiKey');
+
+//     // Ensure there's at least one user query
+//     if (chatHistory.length === 0) {
+//       return 'No queries yet!';
+//     }
+
+//     // Extract the latest user query
+//     const latestQuery = chatHistory[chatHistory.length - 1].content;
+
+//     // Prepare the instruction prompt
+//     const instruction = {
+//       role: 'user',
+//       content: `You are the AI host of Reverse Akinator.
+//         The user is guessing a secret entity, and you can only reply with "yes" or "no" or "You have won!".
+//         The secret entity is: "${secretEntity}" (keep this hidden).
+//         If the user correctly guesses the entity, then reply with "You have won!".
+//         The user's question: "${latestQuery}"`
+//     };
+
+//     // Send only the instruction and latest user query to Gemini
+//     const res = await fetch(
+//       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+//       {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({
+//           contents: [
+//             {
+//               role: 'user',
+//               parts: [{ text: instruction.content }]
+//             }
+//           ]
+//         }),
+//       }
+//     );
+//     const data = await res.json();
+//     console.log('Gemini API Response:', data);
+//     const ans=data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+//     return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No valid response from Gemini.';
+//   } catch (err) {
+//     console.error('Error fetching Gemini response:', err);
+//     return `Error: ${err instanceof Error ? err.message : 'Unknown error'}`;
+//   }
+// }
+
+
+// const updateScore = async (context: Devvit.Context, channel: any, username: string, score: number) => {
+//   // Update the score in Redis
+//   await context.redis.zAdd('leaderboard', { member: username, score });
+
+//   // Broadcast the update to all clients
+//   await channel.send({ member: username, score });
+// };
+
+
+// //post
+// Devvit.addCustomPostType({
+//   name: 'Devvit - Ask Gemini',
+//   render: (context) => {
+//     const [responseText, setResponseText] = useState('');
+//     const [currentPage, setCurrentPage] = useState<'home' | 'play' | 'res'>('home');
+//     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+//     const [secretEntity, setSecretEntity] = useState<string>('');
+//     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+//     const [win, setWin] = useState<boolean>(false);
+//     const [questionCount, setQuestionCount] = useState<number>(0);
+//     const [page, setPage] = useState(0);
+//     const [score, setScore] = useState(0);
+//     const pairsPerPage = 5; 
+//     const [result, setRessult] = useState<boolean>(false);
+//     type LeaderboardEntry = { member: string; score: number };
+//     //const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+//     //const [showLeaderboard, setShowLeaderboard] = useState(false);
+//     //const [descrip, setDescrip] = useState<string>(''); 
+//     const pairedHistory = [];
+//     for (let i = 0; i < chatHistory.length; i += 2) {
+//       pairedHistory.push([chatHistory[i], chatHistory[i + 1] || { role: 'assistant', content: '...' }]);
+//     }
+//     const totalPages = Math.max(1, Math.ceil(pairedHistory.length / pairsPerPage));
+//     const currentPairs = pairedHistory.slice(page * pairsPerPage, (page + 1) * pairsPerPage);
+
+//     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+//     const [showLeaderboard, setShowLeaderboard] = useState(false);
+//     const [isChannelConnected, setIsChannelConnected] = useState(false); 
+
+
+//     // Create and subscribe to a realtime channel for leaderboard updates
+//     const updateScore = async (username: string, score: number, retries = 3) => {
+//       // Update the score in Redis
+//       await context.redis.zAdd('leaderboard', { member: username, score });
+    
+//       // Retry logic for sending messages
+//       const sendMessage = async () => {
+//         if (!isChannelConnected) {
+//           if (retries > 0) {
+//             console.warn('Channel not connected. Retrying...');
+//             setTimeout(() => updateScore(username, score, retries - 1), 1000); // Retry after 1 second
+//           } else {
+//             console.error('Failed to send realtime update. Channel not connected.');
+//           }
+//           return;
+//         }
+    
+//         // Broadcast the update to all clients
+//         try {
+//           await channel.send({ member: username, score });
+//           console.log('Realtime update sent successfully');
+//         } catch (error) {
+//           console.error('Failed to send realtime update:', error);
+//         }
+//       };
+    
+//       await sendMessage();
+//     };
+    
+//     useEffect(() => {
+//       if (!isChannelConnected) {
+//         console.log('Waiting for channel to connect...');
+//       }
+    
+//       channel.subscribe();
+    
+//       return () => {
+//         channel.unsubscribe(); // Clean up the subscription when the component unmounts
+//       };
+//     }, [channel]);
+    
+//     const channel = useChannel({
+//       name: 'leaderboard_updates',
+//       onMessage: (newLeaderboardEntry) => {
+//         const newLeaderboard = [...leaderboard, newLeaderboardEntry]
+//           .sort((a, b) => b.score - a.score) // Sort by score
+//           .slice(0, 5); // Keep only top 5
+//         setLeaderboard(newLeaderboard);
+//       },
+//       onSubscribed: () => {
+//         console.log('Channel connected');
+//         setIsChannelConnected(true); // Mark the channel as connected
+//       },
+//       onUnsubscribed: () => {
+//         console.log('Channel disconnected');
+//         setIsChannelConnected(false); // Mark the channel as disconnected
+//       },
+//     });
+    
+//     const handleGameEnd = async (score: number) => {
+//       const username = await context.reddit.getCurrentUsername();
+//       await updateScore(username, score); // Update the score and send a realtime update
+//       setCurrentPage('res'); // Navigate to the results page
+//     };
+
+//     const askform = useForm(
+//       {
+//         fields: [{ type: 'string', name: 'query', label: 'Ask your next question!!' }],
+//       },
+//       async (values) => {
+//         const query = (values.query || '').trim();
+//         if (!query) {
+//           return;
+//         }
+//         const updatedHistory = [...chatHistory, { role: 'user' as const, content: query }];
+//         const newCount = questionCount + 1; // Increment question count
+
+//         // Check if the user has reached 10 questions
+//         if (newCount >= 10) {
+//           setResponseText("Game over! You've used all 10 questions and didn't guess correctly.");
+//           await handleGameEnd(score);
+//           setCurrentPage('res');
+//           return;
+//         }
+//         const response = await fetchGeminiResponse(context, secretEntity, updatedHistory);
+//         console.log('Gemini Response:', response);
+//         if (response.trim().toLowerCase() === 'you have won!') {
+//           setScore(100);
+//           console.log('User has won!');
+//           setResponseText('You have won!');
+//           setWin(true);
+//           // stays as is
+//           // Get current username
+//           const username = await context.reddit.getCurrentUsername();
+//           console.log('Current User:', username);
+//           await updateScore(username, score);
+//           setCurrentPage('res');
+//           return;
+//         }
+//         setChatHistory([...updatedHistory, { role: 'assistant' as const, content: response }]);
+//         setResponseText(response);
+//         setQuestionCount(newCount);
+//       }
+//     );
+//     if (currentPage === 'res') {
+//       return (
+//         <blocks height="tall">
+//           <vstack alignment="center middle" height="100%" gap="large" backgroundColor="white" padding="medium">
+//             <text size="xlarge" weight="bold">Congratulations! 🎉</text>
+            
+//             {/* <image
+//               url="https://hips.hearstapps.com/hmg-prod/images/balloon-flower-royalty-free-image-1703107813.jpg"
+//               imageWidth={300}
+//               imageHeight={300}
+//             /> */}
+            
+//             <text size="large">You've completed the game!</text>
+            
+//             <hstack gap="medium">
+//               <button appearance="primary" onPress={() => setCurrentPage('home')}>
+//                 Play Again
+//               </button>
+//               <button 
+//                 appearance="secondary" 
+//                 onPress={() => setShowLeaderboard(!showLeaderboard)}
+//               >
+//                 {showLeaderboard ? "Hide Leaderboard" : "View Leaderboard"}
+//               </button>
+//             </hstack>
+    
+//             {showLeaderboard && (
+//               <vstack gap="small" padding="medium" backgroundColor="rgba(0,0,0,0.05)" borderRadius="medium" width="100%">
+//                 <text size="large" weight="bold">🏆 Leaderboard 🏆</text>
+//                 {leaderboard && leaderboard.length > 0 ? (
+//                   leaderboard.map((entry, index) => (
+//                     <hstack key={index} gap="medium" alignment="center middle">
+//                       <text weight="bold">{`${index + 1}.`}</text>
+//                       <text>{entry.member}</text>
+//                       <text weight="bold">{`${entry.score} pts`}</text>
+//                     </hstack>
+//                   ))
+//                 ) : (
+//                   <text>No scores on the leaderboard yet. Be the first!</text>
+//                 )}
+//               </vstack>
+//             )}
+//           </vstack>
+//         </blocks>
+//       );
+//     }
+
+//     if (currentPage === 'home') {
+//       const categories = ['Sports Persons', 'Celebrities', 'Animals'];
+
+//       return (
+//         <blocks height='tall'>
+//           <vstack alignment="center middle" height="100%" gap="large" backgroundColor='lightblue'>
+//             <text size="large" weight="bold" color='black'>
+//               Welcome to REVERSE AKINATOR! 
+//             </text>
+//             <text color='black'>Select a category:</text>
+//             <hstack gap="medium" padding="medium">
+//               {categories.map((category) => (
+//                 <button
+//                   key={category}
+//                   appearance={selectedCategory === category ? 'primary' : 'secondary'}
+//                   onPress={async () => {
+//                     setSelectedCategory(category);
+//                     if (category === 'Animals') {
+//                       const {animal, descrip} = await getRandomAnimal(context);
+//                       //setDescrip(descrip);
+//                       setSecretEntity(animal); // Set the random animal as character
+//                     } else {
+//                       setSecretEntity('a human');
+//                     }
+//                   }}
+//                 >
+//                   {category}
+//                 </button>
+//               ))}
+//             </hstack>
+//             {selectedCategory && (
+//               <button
+//                 appearance="primary"
+//                 onPress={() => {
+
+//                   setChatHistory([]);
+//                   setCurrentPage('play');
+//                   setQuestionCount(0);
+//                 }}
+//               >
+//                 Play as {selectedCategory} 
+//               </button>
+//             )}
+//           </vstack>
+//         </blocks>
+//       );
+//     }
+
+//     return (
+//       <blocks height="tall">
+//         <vstack alignment="center middle" height="100%" gap="medium" backgroundColor="white">
+//             <button appearance="secondary" onPress={() => setCurrentPage('home')}>
+//               🔙 Back
+//             </button>
+
+//             <text size="large" weight="bold" color="black">
+//               Guess the Secret Entity!
+//             </text>
+
+//             <button onPress={() => context.ui.showForm(askform)}>
+//               Make a guess
+//             </button>
+
+//             <text wrap color="black" weight="bold">
+//               AI Response: {responseText}
+//             </text>
+//             <text>Questions Asked: {questionCount}/10</text>
+
+
+//             <vstack height="100%">
+//               <text size="medium" weight="bold" color="black">
+//                 Chat History:
+//               </text>
+
+//               {currentPairs.map((pair, index) => (
+//                 <vstack key={index.toString()}>
+//                   <text wrap color="blue">You: {pair[0].content}</text>
+//                   <text wrap color="green">AI: {pair[1].content}</text>
+//                   <spacer size="small" /> {/* Adds vertical spacing between pairs */}
+//                 </vstack>
+//               ))}
+
+//               <spacer /> {/* Pushes buttons to bottom */}
+
+//               <hstack>
+//                 <button onPress={() => setPage(page - 1)} disabled={page === 0}>
+//                   ⬅️ Previous
+//                 </button>
+//                 <text>{`Page ${page + 1} of ${totalPages}`}</text>
+//                 <button onPress={() => setPage(page + 1)} disabled={page >= totalPages - 1}>
+//                   Next ➡️
+//                 </button>
+//               </hstack>
+//             </vstack>
+
+//             <button appearance="secondary" onPress={() => setCurrentPage('home')}>
+//               Restart Game 🔄
+//             </button>
+//           </vstack>
+//       </blocks>
+//     );
+//   },
+// });
+
+// export default Devvit;
+
+
+// import { Devvit, useState, useForm, useChannel} from '@devvit/public-api';
+
+
+// import { animals, getAnimalData } from './animaldata';
+
+// Devvit.configure({
+//   http: true,
+//   redis: true,
+//   realtime: true,
+//   redditAPI: true,
+// });
+
+// // Store Google API key in Devvit's settings
+// Devvit.addSettings([
+//   {
+//     name: 'googleApiKey',
+//     label: 'Google API Key',
+//     type: 'string',
+//     isSecret: true,
+//     scope: 'app',
+//   },
+// ]);
+// type LeaderboardEntry = { member: string; score: number };
+
+// async function setupAnimals(context: Devvit.Context) {
+//   const animalData = getAnimalData();
+//   const redisData: Record<string, string> = {};
+  
+//   Object.entries(animalData).forEach(([key, value]) => {
+//     redisData[key] = JSON.stringify(value);
+//   });
+  
+//   // Store in Redis
+//   await context.redis.hSet('animals', redisData);
+//   console.log("Animal data stored in Redis!");
+// }
+
+// async function getRandomAnimal(context: Devvit.Context) {
+//   const animalKeys = await context.redis.hKeys('animals');
+//   if (!animalKeys.length) {
+//     await setupAnimals(context);
+//   }
+//   const animals = await context.redis.hKeys('animals');
+//   if (animals.length === 0){
+//     console.log("No animals found!");
+//     return {animal: "an anumal", descrip:"set can't be made"};
+//   } 
+//   // Pick a random animal
+//   const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+//   console.log(`Selected Animal: ${randomAnimal}`);
+//   const animalData = await context.redis.hGet('animals', randomAnimal);
+//   if (!animalData) {
+//     console.log("Animal data is undefined");
+//     return {animal: 'errrrr', descrip: 'error'};
+//   }
+//   const { image, description } = JSON.parse(animalData);
+//   console.log(`Selected Animal: ${randomAnimal}`);
+//   console.log(`Image URL: ${image}`);
+//   console.log(`Description: ${description}`);
+
+//   return {animal: randomAnimal, descrip: description};
+// }
+
+// // gemini msg declaration
+// type ChatMessage = { role: 'user' | 'assistant'; content: string };
+// async function fetchGeminiResponse(
+//   context: Devvit.Context,
+//   secretEntity: string,
+//   chatHistory: ChatMessage[]
+// ): Promise<string> {
+//   try {
+//     const apiKey = await context.settings.get('googleApiKey');
+
+//     // Ensure there's at least one user query
+//     if (chatHistory.length === 0) {
+//       return 'No queries yet!';
+//     }
+
+//     // Extract the latest user query
+//     const latestQuery = chatHistory[chatHistory.length - 1].content;
+
+//     // Prepare the instruction prompt
+//     const instruction = {
+//       role: 'user',
+//       content: `You are the AI host of Reverse Akinator.
+//         The user is guessing a secret entity, and you can only reply with "yes" or "no" or "You have won!".
+//         The secret entity is: "${secretEntity}" (keep this hidden).
+//         If the user correctly guesses the entity, then reply with "You have won!".
+//         The user's question: "${latestQuery}"`
+//     };
+
+//     // Send only the instruction and latest user query to Gemini
+//     const res = await fetch(
+//       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+//       {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({
+//           contents: [
+//             {
+//               role: 'user',
+//               parts: [{ text: instruction.content }]
+//             }
+//           ]
+//         }),
+//       }
+//     );
+//     const data = await res.json();
+//     console.log('Gemini API Response:', data);
+//     const ans=data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+//     return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No valid response from Gemini.';
+//   } catch (err) {
+//     console.error('Error fetching Gemini response:', err);
+//     return `Error: ${err instanceof Error ? err.message : 'Unknown error'}`;
+//   }
+// }
+
+// // Get the latest leaderboard from Redis
+// async function getLeaderboard(context: Devvit.Context, limit = 5): Promise<LeaderboardEntry[]> {
+//   try {
+//     const leaderboardData = await context.redis.zRangeWithScores('leaderboard', 0, limit - 1, {
+//       reverse: true // Get highest scores first
+//     });
+    
+//     return leaderboardData.map(entry => ({
+//       member: entry.member,
+//       score: entry.score
+//     }));
+//   } catch (error) {
+//     console.error('Error fetching leaderboard:', error);
+//     return [];
+//   }
+// }
+
+// // Update score in Redis and broadcast to channel
+// async function updateLeaderboard(context: Devvit.Context, channel: any, username: string, score: number) {
+//   try {
+//     // Update the score in Redis
+//     await context.redis.zAdd('leaderboard', { member: username, score });
+//     console.log(`Updated score for ${username}: ${score}`);
+    
+//     // Try to broadcast the update to all clients
+//     try {
+//       await channel.send({ member: username, score });
+//       console.log('Realtime update sent successfully');
+//     } catch (err) {
+//       console.error('Failed to send realtime update:', err);
+//     }
+//   } catch (err) {
+//     console.error('Error updating leaderboard:', err);
+//   }
+// }
+
+// //post
+// Devvit.addCustomPostType({
+//   name: 'Devvit - Ask Gemini',
+//   render: (context) => {
+//     const [responseText, setResponseText] = useState('');
+//     const [currentPage, setCurrentPage] = useState<'home' | 'play' | 'res'>('home');
+//     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+//     const [secretEntity, setSecretEntity] = useState<string>('');
+//     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+//     const [win, setWin] = useState<boolean>(false);
+//     const [questionCount, setQuestionCount] = useState<number>(0);
+//     const [page, setPage] = useState(0);
+//     const [score, setScore] = useState(0);
+//     const pairsPerPage = 5; 
+//     const [result, setRessult] = useState<boolean>(false);
+//     type LeaderboardEntry = { member: string; score: number };
+//     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+//     const [showLeaderboard, setShowLeaderboard] = useState(false);
+    
+//     const pairedHistory = [];
+//     for (let i = 0; i < chatHistory.length; i += 2) {
+//       pairedHistory.push([chatHistory[i], chatHistory[i + 1] || { role: 'assistant', content: '...' }]);
+//     }
+//     const totalPages = Math.max(1, Math.ceil(pairedHistory.length / pairsPerPage));
+//     const currentPairs = pairedHistory.slice(page * pairsPerPage, (page + 1) * pairsPerPage);
+
+//     // Create channel for leaderboard updates
+//     const channel = useChannel({
+//       name: 'leaderboard_updates',
+//       onMessage: (newLeaderboardEntry) => {
+//         console.log('Received leaderboard update:', newLeaderboardEntry);
+//         setLeaderboard(prevLeaderboard => {
+//           // Create a new array with the new entry
+//           const updatedLeaderboard = [...prevLeaderboard];
+          
+//           // Check if the member already exists in the leaderboard
+//           const existingIndex = updatedLeaderboard.findIndex(
+//             entry => entry.member === newLeaderboardEntry.member
+//           );
+          
+//           if (existingIndex >= 0) {
+//             // Update existing entry
+//             updatedLeaderboard[existingIndex] = newLeaderboardEntry;
+//           } else {
+//             // Add new entry
+//             updatedLeaderboard.push(newLeaderboardEntry);
+//           }
+          
+//           // Sort by score (highest first) and limit to top 5
+//           return updatedLeaderboard
+//             .sort((a, b) => b.score - a.score)
+//             .slice(0, 5);
+//         });
+//       },
+//       onSubscribed: () => {
+//         console.log('Channel connected successfully');
+//         // Load initial leaderboard data when channel connects
+//         getLeaderboard(context).then(data => {
+//           if (data.length > 0) {
+//             setLeaderboard(data);
+//           }
+//         });
+//       }
+//     });
+    
+//     // Handle game end and update score
+//     const handleGameEnd = async (finalScore: number) => {
+//       try {
+//         const username = await context.reddit.getCurrentUsername();
+//         console.log(`Game ended for ${username} with score: ${finalScore}`);
+        
+//         // Update leaderboard
+//         await updateLeaderboard(context, channel, username, finalScore);
+        
+//         // Navigate to results page
+//         setCurrentPage('res');
+        
+//         // Refresh leaderboard data
+//         const latestLeaderboard = await getLeaderboard(context);
+//         setLeaderboard(latestLeaderboard);
+//       } catch (error) {
+//         console.error('Error in handleGameEnd:', error);
+//       }
+//     };
+
+//     const askform = useForm(
+//       {
+//         fields: [{ type: 'string', name: 'query', label: 'Ask your next question!!' }],
+//       },
+//       async (values) => {
+//         const query = (values.query || '').trim();
+//         if (!query) {
+//           return;
+//         }
+//         const updatedHistory = [...chatHistory, { role: 'user' as const, content: query }];
+//         const newCount = questionCount + 1; // Increment question count
+
+//         // Check if the user has reached 10 questions
+//         if (newCount >= 10) {
+//           setResponseText("Game over! You've used all 10 questions and didn't guess correctly.");
+//           await handleGameEnd(score);
+//           setCurrentPage('res');
+//           return;
+//         }
+//         const response = await fetchGeminiResponse(context, secretEntity, updatedHistory);
+//         console.log('Gemini Response:', response);
+//         if (response.trim().toLowerCase() === 'you have won!') {
+//           const winScore = 100;
+//           setScore(winScore);
+//           console.log('User has won!');
+//           setResponseText('You have won!');
+//           setWin(true);
+          
+//           // Get current username and update score
+//           const username = await context.reddit.getCurrentUsername();
+//           console.log('Current User:', username);
+//           await updateLeaderboard(context, channel, username, winScore);
+//           setCurrentPage('res');
+//           return;
+//         }
+//         setChatHistory([...updatedHistory, { role: 'assistant' as const, content: response }]);
+//         setResponseText(response);
+//         setQuestionCount(newCount);
+//       }
+//     );
+    
+//     // Whenever we enter results page, refresh the leaderboard
+//     if (currentPage === 'res' && !showLeaderboard) {
+//       getLeaderboard(context).then(data => {
+//         setLeaderboard(data);
+//       });
+//     }
+
+//     if (currentPage === 'res') {
+//       return (
+//         <blocks height="tall">
+//           <vstack alignment="center middle" height="100%" gap="large" backgroundColor="white" padding="medium">
+//             <text size="xlarge" weight="bold">Congratulations! 🎉</text>
+            
+//             <text size="large">You've completed the game!</text>
+            
+//             <hstack gap="medium">
+//               <button appearance="primary" onPress={() => setCurrentPage('home')}>
+//                 Play Again
+//               </button>
+//               <button 
+//                 appearance="secondary" 
+//                 onPress={() => {
+//                   setShowLeaderboard(!showLeaderboard);
+//                   if (!showLeaderboard) {
+//                     // Refresh leaderboard data when showing
+//                     getLeaderboard(context).then(data => {
+//                       setLeaderboard(data);
+//                     });
+//                   }
+//                 }}
+//               >
+//                 {showLeaderboard ? "Hide Leaderboard" : "View Leaderboard"}
+//               </button>
+//             </hstack>
+    
+//             {showLeaderboard && (
+//               <vstack gap="small" padding="medium" backgroundColor="rgba(0,0,0,0.05)" borderRadius="medium" width="100%">
+//                 <text size="large" weight="bold">🏆 Leaderboard 🏆</text>
+//                 {leaderboard && leaderboard.length > 0 ? (
+//                   leaderboard.map((entry, index) => (
+//                     <hstack key={index} gap="medium" alignment="center middle">
+//                       <text weight="bold">{`${index + 1}.`}</text>
+//                       <text>{entry.member}</text>
+//                       <text weight="bold">{`${entry.score} pts`}</text>
+//                     </hstack>
+//                   ))
+//                 ) : (
+//                   <text>No scores on the leaderboard yet. Be the first!</text>
+//                 )}
+//               </vstack>
+//             )}
+//           </vstack>
+//         </blocks>
+//       );
+//     }
+
+//     if (currentPage === 'home') {
+//       const categories = ['Sports Persons', 'Celebrities', 'Animals'];
+
+//       return (
+//         <blocks height='tall'>
+//           <vstack alignment="center middle" height="100%" gap="large" backgroundColor='lightblue'>
+//             <text size="large" weight="bold" color='black'>
+//               Welcome to REVERSE AKINATOR! 
+//             </text>
+//             <text color='black'>Select a category:</text>
+//             <hstack gap="medium" padding="medium">
+//               {categories.map((category) => (
+//                 <button
+//                   key={category}
+//                   appearance={selectedCategory === category ? 'primary' : 'secondary'}
+//                   onPress={async () => {
+//                     setSelectedCategory(category);
+//                     if (category === 'Animals') {
+//                       const {animal, descrip} = await getRandomAnimal(context);
+//                       setSecretEntity(animal); // Set the random animal as character
+//                     } else {
+//                       setSecretEntity('a human');
+//                     }
+//                   }}
+//                 >
+//                   {category}
+//                 </button>
+//               ))}
+//             </hstack>
+//             {selectedCategory && (
+//               <button
+//                 appearance="primary"
+//                 onPress={() => {
+//                   setChatHistory([]);
+//                   setCurrentPage('play');
+//                   setQuestionCount(0);
+//                 }}
+//               >
+//                 Play as {selectedCategory} 
+//               </button>
+//             )}
+//           </vstack>
+//         </blocks>
+//       );
+//     }
+
+//     return (
+//       <blocks height="tall">
+//         <vstack alignment="center middle" height="100%" gap="medium" backgroundColor="white">
+//             <button appearance="secondary" onPress={() => setCurrentPage('home')}>
+//               🔙 Back
+//             </button>
+
+//             <text size="large" weight="bold" color="black">
+//               Guess the Secret Entity!
+//             </text>
+
+//             <button onPress={() => context.ui.showForm(askform)}>
+//               Make a guess
+//             </button>
+
+//             <text wrap color="black" weight="bold">
+//               AI Response: {responseText}
+//             </text>
+//             <text>Questions Asked: {questionCount}/10</text>
+
+
+//             <vstack height="100%">
+//               <text size="medium" weight="bold" color="black">
+//                 Chat History:
+//               </text>
+
+//               {currentPairs.map((pair, index) => (
+//                 <vstack key={index.toString()}>
+//                   <text wrap color="blue">You: {pair[0].content}</text>
+//                   <text wrap color="green">AI: {pair[1].content}</text>
+//                   <spacer size="small" /> {/* Adds vertical spacing between pairs */}
+//                 </vstack>
+//               ))}
+
+//               <spacer /> {/* Pushes buttons to bottom */}
+
+//               <hstack>
+//                 <button onPress={() => setPage(page - 1)} disabled={page === 0}>
+//                   ⬅️ Previous
+//                 </button>
+//                 <text>{`Page ${page + 1} of ${totalPages}`}</text>
+//                 <button onPress={() => setPage(page + 1)} disabled={page >= totalPages - 1}>
+//                   Next ➡️
+//                 </button>
+//               </hstack>
+//             </vstack>
+
+//             <button appearance="secondary" onPress={() => setCurrentPage('home')}>
+//               Restart Game 🔄
+//             </button>
+//           </vstack>
+//       </blocks>
+//     );
+//   },
+// });
+
+// export default Devvit;
+
+//has leaderboard issues
+import { Devvit, useState, useForm, useChannel} from '@devvit/public-api';
 
 
 import { animals, getdata } from './Animals_ds';
@@ -190,7 +1049,65 @@ async function updateLeaderboard(context: Devvit.Context, username: string, scor
     return false;
   }
 }
+Devvit.addSchedulerJob({
+  name: 'daily_challenge',
+  onRun: async (_, context) => {
+    const subredditName = await context.reddit.getCurrentSubredditName();
+    const dailySeed = Math.floor(Math.random() * 3) + 1;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Create the post with preview
+    const post = await context.reddit.submitPost({
+      subredditName: subredditName, // Use the variable you defined above
+      title: `Daily Challenge - ${today}`,
+      preview: (
+        <vstack>
+          <text>Loading challenge...</text>
+        </vstack>
+      )
+    });
+    
+    // Don't forget to store the seed in Redis
+    await context.redis.set(`post:${post.id}:seed`, dailySeed.toString());
+},
+});
 
+// 2. Trigger to set up the scheduler
+Devvit.addTrigger({
+  events: ['AppInstall', 'AppUpgrade'],
+  onEvent: async (_, context) => {
+    try {
+      // Check if we already have a job scheduled
+      const existingJobId = await context.redis.get('daily_challenge_job_id');
+      
+      // If there's an existing job, cancel it to avoid duplicates
+      if (existingJobId) {
+        await context.scheduler.cancelJob(existingJobId);
+      }
+      
+      // Schedule a new job to run at midnight UTC every day
+      const jobId = await context.scheduler.runJob({
+        cron: '50 20 * * *', // Midnight UTC every day
+        name: 'daily_challenge',
+      });
+      
+      // Store the job ID in Redis
+      await context.redis.set('daily_challenge_job_id', jobId);
+    } catch (e) {
+      console.error('Failed to schedule daily challenge:', e);
+    }
+  },
+});
+
+Devvit.addMenuItem({
+  label: 'clear',
+  location: 'post',
+  forUserType: 'moderator',
+  onPress: async (_, context) => {
+    const jobId = (await context.redis.get('jobId')) || '0';
+    await context.scheduler.cancelJob(jobId);
+  },
+});
 //post
 Devvit.addCustomPostType({
   name: 'Devvit - Ask Gemini',
@@ -210,6 +1127,10 @@ Devvit.addCustomPostType({
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [imageurl, setImageurl] = useState<string>('');
+    const [seed] = useState(async () => {
+      const postSeed = await context.redis.get(⁠ post:${context.postId}:seed ⁠);
+      return Number(postSeed || 1);
+    });
     const pairedHistory = [];
     for (let i = 0; i < chatHistory.length; i += 2) {
       pairedHistory.push([chatHistory[i], chatHistory[i + 1] || { role: 'assistant', content: '...' }]);
@@ -319,141 +1240,6 @@ Devvit.addCustomPostType({
         setQuestionCount(newCount);
       }
     );
-
-    
-    // When page changes to results, refresh leaderboard
-    // if (currentPage === 'win') {
-    //   // Immediately initiate a leaderboard refresh
-    //   //refreshLeaderboard();
-    // }
-    // if (currentPage === 'win') {
-    //   return (
-    //     <blocks height="tall">
-    //       <zstack width="100%" height="100%">
-    //       {/* Background Image Layer */}
-    //       <image
-    //         imageHeight={1024}
-    //         imageWidth={1500}
-    //         height="100%"
-    //         width="100%"
-    //         url="bk_result.png"
-    //         description="Game Background"
-    //         resizeMode="cover"
-    //       />
-    //       <vstack 
-    //         alignment="center middle" 
-    //         height="100%" 
-    //         gap="large" 
-    //         padding="large"
-    //         cornerRadius="large" // Rounded edges for a softer look
-    //       >
-    //         {/* Win Message */}
-    //         <text size="xlarge" wrap weight="bold" color="black">OH NOO You got me this time!! </text>
-            
-    //         {/* Secret Entity Reveal */}
-    //         <text size="large" weight="bold" color="black">It was indeed {secretEntity}!</text>
-            
-    //         {/* Image of the Entity */}
-    //         <image
-    //           url={imageurl}
-    //           //description={secretEntity}
-    //           imageWidth={250} // Slightly reduced for better balance
-    //           imageHeight={250} 
-    //           cornerRadius="full" // Makes it rounded for a polished look
-    //         />
-    //         {/* Score Information */}
-    //         <text size="medium" color="black">
-    //           You answered in {questionCount}/10 questions! {score}
-    //         </text>
-    
-    //         {/* Button Row */}
-    //         <hstack alignment="space-between" width="100%" padding="small">
-    
-    //           {/* Back to Home Button - Bottom Right */}
-    //           <button appearance="primary" onPress={() => setCurrentPage('home')}>
-    //             Another round?
-    //           </button>
-    //         </hstack>
-    //       </vstack>
-    //       </zstack>
-    //     </blocks>
-    //   );
-    // }
-    // if (currentPage === 'win') {
-    //   return (
-    //     <blocks height="tall">
-    //       <zstack width="100%" height="100%">
-            
-    //         {/* Background Image Layer */}
-    //         <image
-    //           imageHeight={1024}
-    //           imageWidth={1500}
-    //           height="100%"
-    //           width="100%"
-    //           url="bk_result.png"
-    //           description="Game Background"
-    //           resizeMode="cover"
-    //         />
-            
-    //         {/* Foreground Content */}
-    //         <vstack 
-    //           alignment="center middle" 
-    //           height="100%" 
-    //           gap="large" 
-    //           padding="large"
-    //         >
-    //           {/* Box for Text Content */}
-    //           <vstack 
-    //             alignment="center middle"
-    //             backgroundColor="rgba(255, 255, 255, 0.85)" // Solid white with slight transparency
-    //             padding="large"
-    //             cornerRadius="large"
-    //             borderColor="black"
-    //             borderWidth="2px"
-    //             shadow="medium"
-    //             width="100%" 
-    //           >
-    //             {/* Win Message */}
-    //             <text size="xlarge" wrap weight="bold" color="black" alignment='middle center'>🎉 OH NOO! You got me this time!! 🎉</text>
-    
-    //             <text size="large" weight="bold" color="black" alignment='middle center'>It was indeed {secretEntity}!</text>
-    //           </vstack>
-    
-    //           {/* Image of the Entity */}
-    //           <image
-    //             url={imageurl}
-    //             imageWidth={250} 
-    //             imageHeight={250} 
-    //             cornerRadius="full"
-    //           />
-    
-    //           {/* Box for Score Info */}
-    //           <vstack 
-    //             backgroundColor="rgba(0, 0, 0, 0.8)" // Dark background for contrast
-    //             padding="medium"
-    //             cornerRadius="medium"
-    //             borderColor="white"
-    //             borderWidth="2px"
-    //             shadow="medium"
-    //           >
-    //             <text size="medium" color="white" alignment='middle center'>
-    //               You answered in {questionCount}/10 questions! {score}
-    //             </text>
-    //           </vstack>
-    
-    //           {/* Button Row */}
-    //           <hstack alignment="center middle" width="100%" padding="small">
-    //             {/* Another Round Button */}
-    //             <button appearance="primary" onPress={() => setCurrentPage('home')}>
-    //               Another round?
-    //             </button>
-    //           </hstack>
-    
-    //         </vstack>
-    //       </zstack>
-    //     </blocks>
-    //   );
-    // }
     if (currentPage === 'win') {
       return (
         <blocks height="tall">
@@ -699,81 +1485,95 @@ Devvit.addCustomPostType({
     //   );
     // }
 
-    if (currentPage === 'home') {
-      const categories = ['Sports Persons', 'Celebrities', 'Animals'];
+if (currentPage === 'home') {
+  const categories = ['Sports Persons', 'Celebrities', 'Animals'];
 
-      return (
-        <blocks height='tall'>
-          <hstack alignment="center middle" height="100%" backgroundColor='lightblue'>
-            {/* Left side with controls */}
-            <vstack alignment="center middle" width="50%" gap="medium" padding="medium">
-              <image
-                imageWidth={250}
-                imageHeight={100}
-                url="text-1743099872566.png"
-                description="AI-kinator"
-                resizeMode="fit"
-              />
+  return (
+    <blocks height="tall">
+      
+      {/* Top bar for the help icon */}
+      <hstack width="100%" padding="medium" backgroundColor="lightblue">
+        <hstack alignment="end top" width="100%">
+          <icon name="help" color="black" onPress={() => setCurrentPage('instructions')} />
+        </hstack>
+      </hstack>
 
+      {/* Main content */}
+      <hstack alignment="center middle" height="100%" backgroundColor="lightblue">
+        
+        {/* Left side with controls */}
+        <vstack alignment="center middle" width="50%" gap="medium" padding="medium">
+          <image
+            imageWidth={250}
+            imageHeight={100}
+            url="text-1743099872566.png"
+            description="AI-kinator"
+            resizeMode="fit"
+          />
 
+          <button
+            onPress={async () => {
+              setSecretEntity('a human');
+            }}
+          >
+            Play Today's Challenge
+            Today's Challenge Seed: {seed}
+          </button>
+
+          <text color="black">Or</text>
+          <text color="black">Select a category:</text>
+
+          <hstack gap="medium" padding="medium">
+            {categories.map((category) => (
               <button
-
+                key={category}
+                appearance={selectedCategory === category ? "primary" : "secondary"}
                 onPress={async () => {
-                  setSecretEntity('a human');
+                  setSelectedCategory(category);
+                  const { entity, description, url } = await getRandomEntity(context, category);
+                  setSecretEntity(entity);
+                  setImageurl(url);
+                  console.log(`Selected ${category}: ${secretEntity}`);
+                  console.log(`Description: ${imageurl}`);
                 }}
               >
-                Play Today's Challenge
+                {category}
               </button>
-              <text color='black'>Or</text>
-
-              <text color='black'>Select a category:</text>
-              <hstack gap="medium" padding="medium">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  appearance={selectedCategory === category ? 'primary' : 'secondary'}
-                  onPress={async () => {
-                    setSelectedCategory(category);
-                    const { entity, description, url } = await getRandomEntity(context, category);
-                    setSecretEntity(entity);
-                    setImageurl(url);
-                    console.log(`Selected ${category}: ${secretEntity}`);
-                    console.log(`Description: ${imageurl}`);
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
-            </hstack>
-              {selectedCategory && (
-                <button
-                  appearance="primary"
-                  onPress={() => {
-                    setChatHistory([]);
-                    setCurrentPage('play');
-                    setQuestionCount(0);
-                  }}
-                  grow
-                >
-                  Play
-                </button>
-              )}
-            </vstack>
-
-            {/* Right side with main image */}
-            <vstack alignment="center middle" width="50%" height="100%">
-              <image
-                url="homebk.png"
-                imageWidth={400}
-                imageHeight={400}
-                resizeMode="fit"
-                description="Main game image"
-              />
-            </vstack>
+            ))}
           </hstack>
-        </blocks>
-      );
-    }
+
+          {selectedCategory && (
+            <button
+              appearance="primary"
+              onPress={() => {
+                setChatHistory([]);
+                setCurrentPage("play");
+                setQuestionCount(0);
+              }}
+              grow
+            >
+              Play
+            </button>
+          )}
+        </vstack>
+
+        {/* Right side with main image */}
+        <vstack alignment="center middle" width="50%" height="100%">
+          <image
+            url="homebk.png"
+            imageHeight={1024}
+                imageWidth={1500}
+                height="100%"
+                width="100%" // Avoids cropping
+            description="Main game image"
+          />
+        </vstack>
+
+      </hstack>
+
+    </blocks>
+  );
+}
 
     return (
           <blocks height="regular"> {/* Changed from "regular" to "tall" for more vertical space */}
@@ -790,12 +1590,13 @@ Devvit.addCustomPostType({
               />
     
               {/* Foreground Content */}
+
               <vstack padding="small" height="100%" gap="small"> {/* Changed from hstack to vstack for better vertical layout */}
                 {/* Header Section */}
                 <hstack alignment="start" width="100%">
-                  <button appearance="secondary" onPress={() => setCurrentPage('home')}>
+                  {/* <button appearance="secondary" onPress={() => setCurrentPage('home')}>
                     🔙
-                  </button>
+                  </button> */}
                   <spacer size="medium" />
                   {/* <text size="large" weight="bold" color="white">
                     Guess the Secret Entity!
@@ -873,10 +1674,6 @@ Devvit.addCustomPostType({
                         Older ➡️
                       </button>
                     </hstack>
-    
-                    <button appearance="secondary" onPress={() => setCurrentPage('home')}>
-                      Restart Game 🔄
-                    </button>
                   </vstack>
                 </hstack>
               </vstack>
@@ -887,4 +1684,4 @@ Devvit.addCustomPostType({
       },
     });
     
-    export default Devvit;
+ export default Devvit;
