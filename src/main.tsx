@@ -860,9 +860,9 @@
 import { Devvit, useState, useForm, useChannel} from '@devvit/public-api';
 
 
-import { animals, getdata } from './Animals_ds';
-import { celebrities, getdata as getCelebritiesData } from './Celebrities';
-import { sports, getdata as getSportsData } from './Sports_Persons';
+import { animals, getdata } from './a';
+import { celebrities, getdata as getCelebritiesData } from './c';
+import { sports, getdata as getSportsData } from './s';
 
 
 Devvit.configure({
@@ -895,7 +895,7 @@ async function setupCategoryData(context: Devvit.Context, category: string) {
     case 'animals':
       data = getdata(); // from Animals.ts
       break;
-    case 'Celebrities':
+    case 'celebrities':
       data = getCelebritiesData(); // from Celebrities.ts
       break;
     case 'sports persons':
@@ -919,6 +919,10 @@ async function setupCategoryData(context: Devvit.Context, category: string) {
 
 // Get a random entity from a specific category
 async function getRandomEntity(context: Devvit.Context, category: string) {
+  // await context.redis.del('animals');
+  //await context.redis.del('celebrities');
+  // await context.redis.del('sports persons');
+
   const categoryKey = category.toLowerCase();
   
   // Check if data exists for this category
