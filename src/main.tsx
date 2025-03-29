@@ -919,9 +919,9 @@ async function setupCategoryData(context: Devvit.Context, category: string) {
 
 // Get a random entity from a specific category
 async function getRandomEntity(context: Devvit.Context, category: string) {
-  // await context.redis.del('animals');
+  //await context.redis.del('animals');
   //await context.redis.del('celebrities');
-  // await context.redis.del('sports persons');
+  //await context.redis.del('sports persons');
 
   const categoryKey = category.toLowerCase();
   
@@ -1149,7 +1149,7 @@ Devvit.addSchedulerJob({
         preview: (
           <vstack>
             <text>Loading daily challenge...</text>
-            //<text>Category: {category}</text>
+            {/* <text>Category: {category}</text> */}
           </vstack>
         )
       });
@@ -1790,9 +1790,12 @@ const handleGameEnd = async (finalScore: number) => {
               <text size="medium" weight="bold" color="black">🔍 Game Rules:</text>
               <text size="small" wrap color="black">
                The AI is hiding a secret entity. Your job? Guess it within 10 YES/NO questions!
-              </text>
+               </text>
               <text size="small" wrap color="black">
                 No tricky loopholes! Only ask YES/NO questions. (No “What’s their name?” 🙃)
+              </text>
+              <text size="small" wrap color="black">
+                No spelling mistakes allowed!
               </text>
             </vstack>
     
@@ -3010,7 +3013,7 @@ return (
             </vstack>
 
             {/* Button for Making a Guess */}
-            <hstack width="85%" gap="medium" alignment="center">
+            {/* <hstack width="85%" gap="medium" alignment="center">
                   <button onPress={() => context.ui.showForm(askform)} width="30%"  textColor="black">
                     Guess...
                   </button>
@@ -3022,10 +3025,37 @@ return (
                       setWin(false);
                       setCurrentPage('loose');
                     }}
+                    disabled={questionCount === 0 || dc=='true'}
                   >
                     Give Up
                   </button>
-                </hstack>
+                </hstack> */}
+                <hstack width="85%" gap="medium" alignment="center">
+  {/* Guess button - centered when alone */}
+  <button 
+    onPress={() => context.ui.showForm(askform)} 
+    width={questionCount > 0 && dc !== 'true' ? "30%" : "60%"}  
+    textColor="black"
+  >
+    Guess...
+  </button>
+  
+  {/* Only show spacer when Give Up button is visible */}
+  {questionCount > 0 && dc !== 'true' && <spacer size="large" />}
+  
+  {/* Only show Give Up when conditions are met */}
+  {questionCount > 0 && dc !== 'true' && (
+    <button
+      width="30%"
+      onPress={() => {
+        setWin(false);
+        setCurrentPage('loose');
+      }}
+    >
+      Give Up
+    </button>
+  )}
+</hstack>
 
             {/* AI Response Display
             <text wrap color="white" weight="bold">
@@ -3054,6 +3084,7 @@ return (
         setCurrentPage('loose');
       }}
       appearance="destructive"
+
     >
       Give Up
     </button>
