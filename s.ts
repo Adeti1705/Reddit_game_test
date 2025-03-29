@@ -28,8 +28,57 @@ export const sports_persons = {
         image: "https://external-preview.redd.it/max-verstappen-says-winning-8-championships-is-not-a-goal-v0-IeOm6wawuf5ChuXFiAIWO_JO_nhz2GygULtmwIpeY-Q.jpg?width=1080&crop=smart&auto=webp&s=486ffdc9b29e849a8fd5606dac3152c0ad8f6541",
         description: "Max Verstappen is a Dutch-Belgian racing driver competing in Formula One for Red Bull Racing. He has won four consecutive Formula One World Drivers' Championship titles with Red Bull and secured 63 Grand Prix victories. Verstappen started his career in karting and progressed through junior formulae, achieving notable success in FIA European Formula 3. He joined Toro Rosso as part of the Red Bull Junior Team, becoming the youngest Formula One driver in history. After securing points in his debut season, he was promoted to Red Bull, where he won the Spanish Grand Prix, making him the youngest-ever Grand Prix winner. He secured multiple race wins in the following seasons and finished third in the World Drivers' Championship twice before claiming his first title.",
     }
+    ,
+    Lionel_Messi: {
+        image: "https://i.redd.it/4df246m8qjq91.jpg",
+        description: "no desc for now",
+    },
+
+
+    Michael_Jordan: {
+        image: "https://i.redd.it/qj160i61fm3a1.jpg",
+        description: "no desc for now",
+    },
+
+
+    Kobe_Bryant: {
+        image: "https://preview.redd.it/4fu0emazf6d41.jpg?width=640&crop=smart&auto=webp&s=f0df784a5d4bf8159f7508c92ffa1afd17c336f7",
+        description: "no desc for now",
+    },
+
+
+    Roger_Federer: {
+        image: "https://i.redd.it/irlse56uzao91.jpg",
+        description: "no desc for now",
+    },
+
+
+    Sachin_Tendulkar: {
+        image: "https://preview.redd.it/imagine-if-sachin-had-all-of-his-matches-played-under-power-v0-fcofksg0b84c1.png?auto=webp&s=c5f4b7ee57427adbbe1ef671c018d6b57b79cd10",
+        description: "no desc for now",
+    },
+
+
+    Virat_Kohli: {
+        image: "https://i.redd.it/6m8gplqquv631.jpg",
+        description: "no desc for now",
+    },
+
+
+    Jacques_Kallis: {
+        image: "https://preview.redd.it/jacques-kallis-greatest-all-rounder-in-the-history-of-v0-vvfypqc27npc1.png?width=2048&format=png&auto=webp&s=a851de0b0ff11beec0ee1e441980f0a3af6da543",
+        description: "no desc for now",
+    },
+
+
+    Usain_Bolt: {
+        image: "https://external-preview.redd.it/97leATxd3fWvKvaeoCYvmZmHQkS4DkcDP26PVJTxscU.jpg?auto=webp&s=91bf6e07592c3b21ae53c04d36715b022fec3096",
+        description: "no desc for now",
+    }
+    ,
+
 };
 
-export function getAnimalData() {
+export function getdata() {
     return sports_persons;
 }
