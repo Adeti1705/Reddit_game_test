@@ -18,7 +18,7 @@ We initially considered a Web UI, but due to time constraints we simply stuck wi
 
 🚧 Challenges We Ran Into
 🔹 No Fixed Decision Tree: Unlike Akinator, our game required AI to handle unstructured guesses dynamically.
-🔹 Finding a Free AI API: Being broke college students, paid options were out, and Reddit limits LLMs. We settled on Google Gemini since it’s free (for now atleast).
+🔹 Finding a Free AI API: Being broke college students, paid options were out, and Reddit limits LLMs. We settled on Google Gemini since it’s free (for now at least).
 🔹 Devvit’s Limitations: Web UI was tricky, so we kept it simple with blockposts.
 
 🏆 Accomplishments
